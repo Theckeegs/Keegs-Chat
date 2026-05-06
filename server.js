@@ -131,7 +131,19 @@ wss.on('connection', (ws, req) => {
 
     // ── Register ──────────────────────────────────────────────
     if (type === 'register') {
-      clientId = generateId();
+      // Client can request a specific ID (from MAC-derived permanent ID)
+      const requestedId = msg.id ? String(msg.id) : null;
+      if (requestedId && /^[0-9]{6}$/.test(requestedId) && !clients.has(requestedId)) {
+        // Grant the requested ID — same device always gets same ID
+        clientId = requestedId;
+      } else if (requestedId && clients.has(requestedId)) {
+        // ID already taken (another device online with same ID — very unlikely)
+        // Give them a new random one
+        clientId = generateId();
+        console.log(`ID ${requestedId} taken, assigned ${clientId}`);
+      } else {
+        clientId = generateId();
+      }
       clients.set(clientId, { ws, id: clientId, partnerId: null, inDiscovery: false });
       send(ws, { type: 'registered', id: clientId });
       console.log(`Registered: ${clientId} (${clients.size} online)`);
